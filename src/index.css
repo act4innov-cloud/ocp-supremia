@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-[#0a0f1e] text-slate-200 antialiased;
+  }
+}
+
+.glass {
+  @apply bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl;
+}
+
+.status-safe {
+  @apply bg-emerald-500/10 border-emerald-500/30 text-emerald-400;
+}
+
+.status-warning {
+  @apply bg-amber-500/10 border-amber-500/30 text-amber-400;
+}
+
+.status-danger {
+  @apply bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
