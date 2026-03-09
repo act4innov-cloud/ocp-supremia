@@ -3,16 +3,27 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-ocp-green: #BFFF00;
+  --color-ocp-yellow: #FFD100;
+  --color-dark-bg: #080c02;
 }
 
 @layer base {
   body {
-    @apply bg-[#0a0f1e] text-slate-200 antialiased;
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300;
+  }
+  
+  body.dark {
+    @apply bg-dark-bg text-slate-200;
   }
 }
 
 .glass {
-  @apply bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl;
+  @apply bg-white/80 backdrop-blur-md border border-slate-200 rounded-xl shadow-sm transition-all duration-300;
+}
+
+.dark .glass {
+  @apply bg-emerald-950/20 border-emerald-900/30 shadow-none;
 }
 
 .status-safe {

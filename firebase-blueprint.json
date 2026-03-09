@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "SensorConfig": {
+      "title": "SensorConfig",
+      "description": "Configuration for a physical sensor unit",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["ESP32", "ESP8266", "D1MINI"] },
+        "mac": { "type": "string" },
+        "ip": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["id", "type", "location"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "isDarkMode": { "type": "boolean" },
+        "notifConfig": {
+          "type": "object",
+          "properties": {
+            "emailEnabled": { "type": "boolean" },
+            "whatsappEnabled": { "type": "boolean" },
+            "smsEnabled": { "type": "boolean" },
+            "emailRecipient": { "type": "string" },
+            "phoneRecipient": { "type": "string" }
+          }
+        },
+        "mqttConfig": {
+          "type": "object",
+          "properties": {
+            "broker": { "type": "string" },
+            "port": { "type": "integer" },
+            "clientId": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "/sensors/{sensorId}": {
+      "schema": "SensorConfig",
+      "description": "Configured sensors"
+    },
+    "/settings/{userId}": {
+      "schema": "AppConfig",
+      "description": "User specific settings"
+    }
+  }
+}

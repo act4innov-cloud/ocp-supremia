@@ -18,7 +18,7 @@ interface Message {
 export default function Chatbot({ sensorContext }: { sensorContext: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: "Bonjour, je suis SupremBot, votre expert HSE OCP. Comment puis-je vous aider aujourd'hui ?", timestamp: new Date() }
+    { role: 'bot', text: "Bonjour, je suis SupremBot, votre expert HSE SUPREMIA. Comment puis-je vous aider aujourd'hui ?", timestamp: new Date() }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -64,14 +64,14 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
             {/* Header */}
             <div className="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                  <Bot size={24} className="text-white" />
+                <div className="w-10 h-10 rounded-full bg-ocp-green flex items-center justify-center">
+                  <Bot size={24} className="text-black" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-sm">SupremBot AI</h3>
-                  <p className="text-[10px] text-emerald-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Expert HSE OCP Connecté
+                  <p className="text-[10px] text-ocp-green flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-ocp-green animate-pulse" />
+                    Expert HSE SUPREMIA Connecté
                   </p>
                 </div>
               </div>
@@ -95,7 +95,7 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
                   <div className={cn(
                     "max-w-[80%] p-3 rounded-2xl text-sm",
                     msg.role === 'user' 
-                      ? "bg-blue-600 text-white rounded-tr-none" 
+                      ? "bg-ocp-green text-black font-bold rounded-tr-none" 
                       : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"
                   )}>
                     {msg.text}
@@ -124,12 +124,12 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Posez votre question sécurité..."
-                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-ocp-green transition-colors"
               />
               <button 
                 onClick={handleSend}
                 disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded-xl transition-all"
+                className="bg-ocp-green hover:opacity-80 disabled:opacity-50 text-black p-2 rounded-xl transition-all"
               >
                 <Send size={18} />
               </button>
@@ -140,11 +140,11 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all animate-float border-4 border-slate-900"
+        className="w-16 h-16 bg-ocp-green rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all animate-float border-4 border-slate-900"
       >
-        <Bot size={32} className="text-white" />
+        <Bot size={32} className="text-black" />
         {!isOpen && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-ocp-green border-2 border-slate-900 rounded-full" />
         )}
       </button>
     </div>

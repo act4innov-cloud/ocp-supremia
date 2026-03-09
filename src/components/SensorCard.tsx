@@ -13,11 +13,15 @@ const ICON_MAP = {
   H2S: Wind,
   CO: Activity,
   TEMP: Thermometer,
-  HUM: Droplets
+  HUM: Droplets,
+  SMOKE: Wind,
+  LPG: Activity,
+  CO2: Wind,
+  VOC: Wind
 };
 
 const COLOR_MAP = {
-  SAFE: '#10b981',
+  SAFE: '#BFFF00',
   WARNING: '#f59e0b',
   DANGER: '#f43f5e'
 };
@@ -39,7 +43,7 @@ export default function SensorCard({ sensor }: SensorCardProps) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "p-2 rounded-lg",
-            sensor.status === 'SAFE' && "bg-emerald-500/10 text-emerald-400",
+            sensor.status === 'SAFE' && "bg-ocp-green/10 text-ocp-green",
             sensor.status === 'WARNING' && "bg-amber-500/10 text-amber-400",
             sensor.status === 'DANGER' && "bg-rose-500/10 text-rose-400"
           )}>

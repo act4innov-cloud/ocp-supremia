@@ -15,7 +15,7 @@ export default function SafetyPage({ onlineSensors }: { onlineSensors: SensorDat
       {/* ISO 45001 Limits Table */}
       <div className="glass p-6">
         <div className="flex items-center gap-3 mb-6">
-          <ShieldCheck className="text-blue-500" size={24} />
+          <ShieldCheck className="text-ocp-green" size={24} />
           <h3 className="text-lg font-bold text-white">Limites d'Exposition ISO 45001</h3>
         </div>
         <div className="overflow-x-auto">
