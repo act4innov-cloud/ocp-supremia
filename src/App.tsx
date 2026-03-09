@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { LayoutDashboard, ShieldAlert, Settings, FileText, Database, Activity, AlertCircle, CheckCircle2, Clock, LogOut, LogIn, Menu, X, Brain, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Settings, FileText, Database, Activity, AlertCircle, CheckCircle2, Clock, LogOut, LogIn, Menu, X, Brain, TrendingUp, User as UserIcon } from 'lucide-react';
 import mqtt from 'mqtt';
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, Legend } from 'recharts';
@@ -11,6 +11,7 @@ import AIPage from './components/pages/AIPage';
 import ReportsPage from './components/pages/ReportsPage';
 import ConfigPage from './components/pages/ConfigPage';
 import LoginPage from './components/pages/LoginPage';
+import ProfilePage from './components/pages/ProfilePage';
 import { SensorData, getStatus } from './types';
 import { notificationService, NotificationConfig } from './services/notificationService';
 import { clsx, type ClassValue } from 'clsx';
@@ -445,6 +446,7 @@ export default function App() {
             { id: 'safety', icon: ShieldAlert, label: 'Sécurité ISO' },
             { id: 'reports', icon: FileText, label: 'Rapports' },
             { id: 'config', icon: Settings, label: 'Configuration' },
+            { id: 'profile', icon: UserIcon, label: 'Mon Profil' },
           ].map((item) => (
             <button
               key={item.id}
@@ -533,11 +535,19 @@ export default function App() {
             <div className="flex items-center gap-3">
               {user ? (
                 <>
-                  <div className={cn("w-10 h-10 rounded-full border overflow-hidden", isDarkMode ? "bg-ocp-green/20 border-ocp-green/30" : "bg-ocp-green/10 border-ocp-green/20")}>
+                  <button 
+                    onClick={() => setActiveTab('profile')}
+                    className={cn("w-10 h-10 rounded-full border overflow-hidden transition-transform hover:scale-105", isDarkMode ? "bg-ocp-green/20 border-ocp-green/30" : "bg-ocp-green/10 border-ocp-green/20")}
+                  >
                     <img src={user.photoURL || undefined} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
+                  </button>
                   <div>
-                    <p className={cn("text-sm font-bold", isDarkMode ? "text-white" : "text-black")}>{user.displayName || 'Utilisateur'}</p>
+                    <button 
+                      onClick={() => setActiveTab('profile')}
+                      className={cn("text-sm font-bold hover:text-ocp-green transition-colors", isDarkMode ? "text-white" : "text-black")}
+                    >
+                      {user.displayName || 'Utilisateur'}
+                    </button>
                     <button onClick={logout} className="text-[10px] text-rose-500 hover:underline flex items-center gap-1">
                       <LogOut size={10} /> Déconnexion
                     </button>
@@ -699,6 +709,7 @@ export default function App() {
             )}
             {activeTab === 'ai' && <AIPage key="ai" />}
             {activeTab === 'reports' && <ReportsPage key="reports" />}
+            {activeTab === 'profile' && <ProfilePage key="profile" />}
             {activeTab === 'config' && (
               <ConfigPage 
                 key="config" 

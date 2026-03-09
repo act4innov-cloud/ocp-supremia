@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, updatePassword } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, query, where, getDocFromServer } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Error Handling
@@ -131,5 +133,46 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
       alert("Erreur d'inscription : " + (error.message || "Impossible de créer le compte"));
     }
     throw error;
+  }
+};
+
+export const updateUserProfile = async (name: string, photoURL: string) => {
+  if (!auth.currentUser) throw new Error("Utilisateur non connecté");
+  try {
+    await updateProfile(auth.currentUser, { displayName: name, photoURL });
+    return auth.currentUser;
+  } catch (error: any) {
+    console.error('Update Profile Error:', error);
+    alert("Erreur lors de la mise à jour du profil : " + error.message);
+    throw error;
+  }
+};
+
+export const updateUserPassword = async (newPassword: string) => {
+  if (!auth.currentUser) throw new Error("Utilisateur non connecté");
+  try {
+    await updatePassword(auth.currentUser, newPassword);
+  } catch (error: any) {
+    console.error('Update Password Error:', error);
+    if (error.code === 'auth/requires-recent-login') {
+      alert("Cette opération est sensible et nécessite une connexion récente. Veuillez vous déconnecter et vous reconnecter avant de réessayer.");
+    } else {
+      alert("Erreur lors de la mise à jour du mot de passe : " + error.message);
+    }
+    throw error;
+  }
+};
+
+export const uploadProfileImage = async (file: File) => {
+  if (!auth.currentUser) throw new Error("Utilisateur non connecté");
+  
+  const fileRef = ref(storage, `profiles/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
+  try {
+    const snapshot = await uploadBytes(fileRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (error: any) {
+    console.error('Upload Error:', error);
+    throw new Error("Erreur lors de l'upload de l'image : " + error.message);
   }
 };
