@@ -400,6 +400,19 @@ export default function App() {
     return <LoginPage />;
   }
 
+  const CHART_COLORS = [
+    '#BFFF00', // OCP Green
+    '#FF6B00', // Orange vibrant
+    '#00E5FF', // Cyan électrique
+    '#FF007A', // Rose vif
+    '#FFD700', // Jaune d'or
+    '#6366F1', // Indigo
+    '#10B981', // Émeraude
+    '#F43F5E', // Rose/Rouge
+    '#8B5CF6', // Violet
+    '#06B6D4', // Turquoise
+  ];
+
   return (
     <div className={cn(
       "flex h-screen overflow-hidden relative transition-colors duration-300",
@@ -680,7 +693,7 @@ export default function App() {
                             type="monotone"
                             dataKey={sensor.id}
                             name={sensor.name}
-                            stroke={index === 0 ? '#BFFF00' : index === 1 ? '#f59e0b' : index === 2 ? '#3b82f6' : '#8b5cf6'}
+                            stroke={CHART_COLORS[index % CHART_COLORS.length]}
                             strokeWidth={3}
                             dot={{ r: 4, strokeWidth: 2, fill: isDarkMode ? '#080c02' : '#fff' }}
                             activeDot={{ r: 6, strokeWidth: 0 }}
