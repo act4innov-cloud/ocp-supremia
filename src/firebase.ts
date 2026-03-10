@@ -87,7 +87,7 @@ export const signInWithGoogle = async () => {
   } catch (error: any) {
     console.error('Auth Error Detail:', error);
     if (error.code === 'auth/unauthorized-domain') {
-      alert("Erreur : Ce domaine n'est pas autorisé. Veuillez vérifier la configuration Firebase.");
+      alert("Erreur : Ce domaine n'est pas autorisé dans la console Firebase. Veuillez ajouter les domaines suivants aux 'Domaines autorisés' dans Authentication > Settings : \n- ais-dev-vq2upgkmoko2wa5pcdvbo3-136729896699.europe-west2.run.app\n- ais-pre-vq2upgkmoko2wa5pcdvbo3-136729896699.europe-west2.run.app");
     } else if (error.code === 'auth/popup-blocked') {
       alert("Erreur : Le popup a été bloqué. Veuillez autoriser les popups pour ce site.");
     } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
@@ -139,7 +139,19 @@ export const registerWithEmail = async (email: string, pass: string, name: strin
 export const updateUserProfile = async (name: string, photoURL: string) => {
   if (!auth.currentUser) throw new Error("Utilisateur non connecté");
   try {
+    // Update Auth Profile
     await updateProfile(auth.currentUser, { displayName: name, photoURL });
+    
+    // Update Firestore Profile
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    await updateDoc(userRef, {
+      displayName: name,
+      photoURL: photoURL
+    }).catch(e => {
+      console.warn("Firestore profile update failed (might not exist yet):", e);
+      // If document doesn't exist, it will be created by the listener in App.tsx
+    });
+
     return auth.currentUser;
   } catch (error: any) {
     console.error('Update Profile Error:', error);

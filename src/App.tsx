@@ -37,7 +37,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [mqttConfig, setMqttConfig] = useState<MQTTConfig>(configService.getConfig().mqtt);
   const [notifConfig, setNotifConfig] = useState<NotificationConfig>({
     emailEnabled: true,
@@ -138,9 +138,11 @@ export default function App() {
   // Appliquer le thème
   useEffect(() => {
     if (isDarkMode) {
-      document.body.classList.add('dark');
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
     } else {
-      document.body.classList.remove('dark');
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
     }
   }, [isDarkMode]);
 
@@ -394,9 +396,26 @@ export default function App() {
 
   return (
     <div className={cn(
-      "flex h-screen text-slate-200 overflow-hidden relative transition-colors duration-300",
-      isDarkMode ? "bg-dark-bg" : "bg-slate-50"
+      "flex h-screen overflow-hidden relative transition-colors duration-300",
+      isDarkMode ? "dark bg-slate-950 text-slate-200" : "bg-slate-50 text-slate-800"
     )}>
+      {/* Background Image */}
+      <div 
+        className={cn(
+          "absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-opacity duration-500",
+          isDarkMode ? "opacity-40" : "opacity-10"
+        )}
+        style={{ 
+          backgroundImage: 'url("https://images.unsplash.com/photo-1513828583688-c52646db42da?q=80&w=2070&auto=format&fit=crop")' 
+        }}
+      />
+      
+      {/* Overlay for readability */}
+      <div className={cn(
+        "absolute inset-0 z-0 pointer-events-none transition-colors duration-500",
+        isDarkMode ? "bg-slate-950/60 backdrop-blur-[1px]" : "bg-white/60 backdrop-blur-[1px]"
+      )} />
+
       {/* Mobile Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -413,13 +432,13 @@ export default function App() {
       {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-all duration-300 lg:relative lg:translate-x-0",
-        isDarkMode ? "bg-[#0a1403] border-ocp-green/10" : "bg-white border-slate-200 shadow-xl",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full",
-        "border-r"
+        isDarkMode ? "bg-slate-900/80 border-white/5" : "bg-white/80 border-slate-200 shadow-xl",
+        "backdrop-blur-xl border-r",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className={cn(
-          "p-6 flex items-center justify-between border-b transition-colors duration-300",
-          isDarkMode ? "border-ocp-green/10" : "border-slate-100"
+          "p-6 flex items-center justify-between border-b transition-colors duration-300 relative z-10",
+          isDarkMode ? "border-white/5" : "border-slate-100"
         )}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-ocp-green rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
@@ -427,7 +446,7 @@ export default function App() {
             </div>
             <div>
               <h1 className={cn("font-bold text-lg tracking-tight", isDarkMode ? "text-white" : "text-emerald-900")}>SUPREMIA MONITOR</h1>
-              <p className="text-[10px] text-ocp-yellow font-mono uppercase tracking-widest font-bold">Safety v4.0</p>
+              <p className={cn("text-[10px] font-mono uppercase tracking-widest font-bold", isDarkMode ? "text-ocp-yellow" : "text-emerald-600")}>Safety v4.0</p>
             </div>
           </div>
           <button 
@@ -457,8 +476,8 @@ export default function App() {
               className={cn(
                 "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200",
                 activeTab === item.id 
-                  ? (isDarkMode ? "bg-ocp-green/10 text-ocp-yellow border border-ocp-green/20" : "bg-ocp-green text-white shadow-md shadow-emerald-900/20") 
-                  : (isDarkMode ? "text-slate-500 hover:text-emerald-400 hover:bg-emerald-900/20" : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50")
+                  ? (isDarkMode ? "bg-ocp-green text-black shadow-lg shadow-ocp-green/20" : "bg-ocp-green text-white shadow-md shadow-emerald-900/20") 
+                  : (isDarkMode ? "text-white/60 hover:text-white hover:bg-white/10" : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50")
               )}
             >
               <div className="flex items-center gap-3">
@@ -479,8 +498,8 @@ export default function App() {
           ))}
         </nav>
 
-        <div className={cn("p-4 border-t transition-colors duration-300", isDarkMode ? "border-ocp-green/10" : "border-slate-100")}>
-          <div className={cn("glass p-4", isDarkMode ? "bg-ocp-green/5" : "bg-emerald-50/50 border-emerald-100")}>
+        <div className={cn("p-4 border-t transition-colors duration-300", isDarkMode ? "border-white/5" : "border-slate-100")}>
+          <div className={cn("glass p-4", isDarkMode ? "bg-white/5 border-white/10" : "bg-emerald-50/50 border-emerald-100")}>
             <div className="flex items-center gap-2 mb-2">
               <Database size={14} className="text-ocp-green" />
               <span className={cn("text-xs font-bold uppercase", isDarkMode ? "text-slate-400" : "text-emerald-800")}>MQTT BROKER</span>
@@ -494,11 +513,11 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Header */}
         <header className={cn(
           "h-20 border-b backdrop-blur-md flex items-center justify-between px-4 lg:px-8 transition-colors duration-300",
-          isDarkMode ? "bg-dark-bg/20 border-ocp-green/10" : "bg-white/80 border-slate-200"
+          isDarkMode ? "bg-slate-900/40 border-white/5" : "bg-white/60 border-slate-200"
         )}>
           <div className="flex items-center gap-4">
             <button 
@@ -639,7 +658,7 @@ export default function App() {
                         <Tooltip 
                           contentStyle={{ 
                             backgroundColor: isDarkMode ? '#064e3b' : '#fff', 
-                            border: 'none', 
+                            border: isDarkMode ? 'none' : '1px solid #e2e8f0', 
                             borderRadius: '12px', 
                             boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
                             fontSize: '12px'
@@ -685,7 +704,7 @@ export default function App() {
                     {onlineSensors.length > 0 ? (
                       onlineSensors.map(sensor => (
                         // @ts-ignore
-                        <SensorCard key={sensor.id} sensor={sensor} />
+                        <SensorCard key={sensor.id} sensor={sensor} isDarkMode={isDarkMode} />
                       ))
                     ) : (
                       <div className="col-span-full glass p-12 flex flex-col items-center justify-center text-slate-500 border-dashed">
@@ -701,15 +720,24 @@ export default function App() {
 
             {activeTab === 'sensors' && (
               // @ts-ignore
-              <SensorsPage key="sensors" onlineSensors={onlineSensors} />
+              <SensorsPage key="sensors" onlineSensors={onlineSensors} isDarkMode={isDarkMode} />
             )}
             {activeTab === 'safety' && (
               // @ts-ignore
-              <SafetyPage key="safety" onlineSensors={onlineSensors} />
+              <SafetyPage key="safety" onlineSensors={onlineSensors} isDarkMode={isDarkMode} />
             )}
-            {activeTab === 'ai' && <AIPage key="ai" />}
-            {activeTab === 'reports' && <ReportsPage key="reports" />}
-            {activeTab === 'profile' && <ProfilePage key="profile" />}
+            {activeTab === 'ai' && (
+              // @ts-ignore
+              <AIPage key="ai" isDarkMode={isDarkMode} />
+            )}
+            {activeTab === 'reports' && (
+              // @ts-ignore
+              <ReportsPage key="reports" isDarkMode={isDarkMode} />
+            )}
+            {activeTab === 'profile' && (
+              // @ts-ignore
+              <ProfilePage key="profile" isDarkMode={isDarkMode} />
+            )}
             {activeTab === 'config' && (
               <ConfigPage 
                 key="config" 

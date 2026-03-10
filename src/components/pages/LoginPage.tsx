@@ -45,17 +45,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-950">
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-900">
       {/* Background with 50% transparency */}
       <div 
-        className="absolute inset-0 z-0 opacity-50 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 z-0 opacity-40 bg-cover bg-center bg-no-repeat"
         style={{ 
           backgroundImage: 'url("https://images.unsplash.com/photo-1513828583688-c52646db42da?q=80&w=2070&auto=format&fit=crop")' 
         }}
       />
       
       {/* Overlay for better readability */}
-      <div className="absolute inset-0 z-10 bg-slate-950/40 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 z-10 bg-slate-900/60 backdrop-blur-[1px]" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

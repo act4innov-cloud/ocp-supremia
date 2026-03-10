@@ -3,6 +3,12 @@ import { Brain, Zap, Wrench, Calendar, Lightbulb, TrendingUp, AlertTriangle, Bar
 import { motion } from 'motion/react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
 import axios from 'axios';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface RiskData {
   zone: string;
@@ -20,7 +26,7 @@ interface SensorHealth {
   lastMaintenance: string;
 }
 
-export default function AIPage() {
+export default function AIPage({ isDarkMode }: { isDarkMode: boolean }) {
   const [predictions, setPredictions] = useState<{ risks: RiskData[], sensorHealth: SensorHealth[] }>({
     risks: [],
     sensorHealth: []
@@ -58,8 +64,8 @@ export default function AIPage() {
             <Brain className="text-black" size={32} />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className="text-2xl font-bold text-white mb-1">Intelligence Artificielle Prédictive</h3>
-            <p className="text-slate-400">Analyse en temps réel des risques et maintenance préventive assistée par Gemini AI</p>
+            <h3 className={cn("text-2xl font-bold mb-1", isDarkMode ? "text-white" : "text-slate-900")}>Intelligence Artificielle Prédictive</h3>
+            <p className="text-slate-600 dark:text-slate-400">Analyse en temps réel des risques et maintenance préventive assistée par Gemini AI</p>
           </div>
           <button 
             onClick={handleRunAnalysis}
@@ -78,17 +84,17 @@ export default function AIPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <TrendingUp className="text-amber-500" size={20} />
-              <h4 className="font-bold text-white">Prédiction des Risques Industriels</h4>
+              <h4 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Prédiction des Risques Industriels</h4>
             </div>
             <span className="text-[10px] font-bold text-slate-500 uppercase">Modèle: Gemini-3-Flash</span>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {predictions.risks.map((p, i) => (
-              <div key={i} className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl">
+              <div key={i} className={cn("border p-4 rounded-xl", isDarkMode ? "bg-slate-800/40 border-slate-700" : "bg-white/50 border-slate-200")}>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm font-bold text-white">{p.zone}</span>
-                  <span className={`text-xs font-bold ${p.risk > 50 ? 'text-rose-400' : 'text-amber-400'}`}>{p.risk}% Risque</span>
+                  <span className={cn("text-sm font-bold", isDarkMode ? "text-white" : "text-slate-900")}>{p.zone}</span>
+                  <span className={`text-xs font-bold ${p.risk > 50 ? 'text-rose-500' : 'text-amber-500'}`}>{p.risk}% Risque</span>
                 </div>
                 <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                   <motion.div 
@@ -129,19 +135,19 @@ export default function AIPage() {
         <div className="glass p-6">
           <div className="flex items-center gap-3 mb-6">
             <Wrench className="text-ocp-green" size={20} />
-            <h4 className="font-bold text-white">Santé des Capteurs</h4>
+            <h4 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Santé des Capteurs</h4>
           </div>
           <div className="space-y-4">
             {predictions.sensorHealth.map((s, i) => (
-              <div key={i} className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl">
+              <div key={i} className={cn("border p-4 rounded-xl", isDarkMode ? "bg-slate-800/40 border-slate-700" : "bg-white/50 border-slate-200")}>
                 <div className="flex justify-between mb-2">
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold text-white">{s.name}</span>
+                    <span className={cn("text-sm font-bold", isDarkMode ? "text-white" : "text-slate-900")}>{s.name}</span>
                     <span className="text-[10px] text-slate-500">{s.id}</span>
                   </div>
-                  <span className={`text-xs font-bold ${s.health < 60 ? 'text-rose-400' : 'text-emerald-400'}`}>{s.health}%</span>
+                  <span className={`text-xs font-bold ${s.health < 60 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{s.health}%</span>
                 </div>
-                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${s.health}%` }}
@@ -161,7 +167,7 @@ export default function AIPage() {
               <ShieldCheck className="text-ocp-green" size={16} />
               <span className="text-xs font-bold text-ocp-green uppercase">Indice de Fiabilité Global</span>
             </div>
-            <div className="text-2xl font-bold text-white">92.4%</div>
+            <div className={cn("text-2xl font-bold", isDarkMode ? "text-white" : "text-slate-900")}>92.4%</div>
             <p className="text-[10px] text-slate-500 mt-1">Basé sur 24 capteurs actifs</p>
           </div>
         </div>
@@ -172,7 +178,7 @@ export default function AIPage() {
         <div className="glass p-6">
           <div className="flex items-center gap-3 mb-6">
             <BarChart3 className="text-purple-500" size={20} />
-            <h4 className="font-bold text-white">Carte Thermique des Risques (Heatmap)</h4>
+            <h4 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Carte Thermique des Risques (Heatmap)</h4>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {Array.from({ length: 16 }).map((_, i) => {
@@ -204,12 +210,12 @@ export default function AIPage() {
         <div className="glass p-6">
           <div className="flex items-center gap-3 mb-6">
             <Calendar className="text-ocp-green" size={20} />
-            <h4 className="font-bold text-white">Planning de Maintenance Prédictive</h4>
+            <h4 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Planning de Maintenance Prédictive</h4>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-800">
+                <tr className="text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
                   <th className="pb-4">Unité</th>
                   <th className="pb-4">Probabilité Panne</th>
                   <th className="pb-4">Temps Estimé</th>
@@ -217,17 +223,17 @@ export default function AIPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                <tr className="border-b border-slate-800/50">
-                  <td className="py-4 font-bold text-ocp-green">S02 - Safi Unit B</td>
-                  <td className="py-4">78%</td>
-                  <td className="py-4">3-5 jours</td>
-                  <td className="py-4 text-xs">Remplacement batterie et recalibration</td>
+                <tr className={cn("border-b", isDarkMode ? "border-white/5" : "border-slate-200")}>
+                  <td className="py-4 font-bold text-emerald-600 dark:text-ocp-green">S02 - Safi Unit B</td>
+                  <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-700")}>78%</td>
+                  <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-700")}>3-5 jours</td>
+                  <td className={cn("py-4 text-xs", isDarkMode ? "text-slate-400" : "text-slate-600")}>Remplacement batterie et recalibration</td>
                 </tr>
-                <tr className="border-b border-slate-800/50">
-                  <td className="py-4 font-bold text-ocp-green">S01 - Jorf Unit A</td>
-                  <td className="py-4">12%</td>
-                  <td className="py-4">15-20 jours</td>
-                  <td className="py-4 text-xs">Inspection de routine</td>
+                <tr className={cn("border-b", isDarkMode ? "border-white/5" : "border-slate-200")}>
+                  <td className="py-4 font-bold text-emerald-600 dark:text-ocp-green">S01 - Jorf Unit A</td>
+                  <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-700")}>12%</td>
+                  <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-700")}>15-20 jours</td>
+                  <td className={cn("py-4 text-xs", isDarkMode ? "text-slate-400" : "text-slate-600")}>Inspection de routine</td>
                 </tr>
               </tbody>
             </table>
@@ -238,7 +244,7 @@ export default function AIPage() {
         <div className="glass p-6">
           <div className="flex items-center gap-3 mb-6">
             <Lightbulb className="text-amber-500" size={20} />
-            <h4 className="font-bold text-white">Recommandations IA & Insights</h4>
+            <h4 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Recommandations IA & Insights</h4>
           </div>
           <div className="space-y-4">
             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex gap-4">

@@ -28,15 +28,17 @@ const COLOR_MAP = {
 
 interface SensorCardProps {
   sensor: SensorData;
+  isDarkMode: boolean;
 }
 
-export default function SensorCard({ sensor }: SensorCardProps) {
+export default function SensorCard({ sensor, isDarkMode }: SensorCardProps) {
   const Icon = ICON_MAP[sensor.type] || Activity;
   const color = COLOR_MAP[sensor.status];
 
   return (
     <div className={cn(
       "glass p-5 flex flex-col gap-4 transition-all hover:border-slate-600",
+      isDarkMode ? "border-white/5" : "border-slate-200",
       sensor.status === 'DANGER' && "border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.1)]"
     )}>
       <div className="flex justify-between items-start">
@@ -50,13 +52,13 @@ export default function SensorCard({ sensor }: SensorCardProps) {
             <Icon size={20} />
           </div>
           <div>
-            <h3 className="font-bold text-white text-sm">{sensor.name}</h3>
+            <h3 className={cn("font-bold text-sm", isDarkMode ? "text-white" : "text-slate-900")}>{sensor.name}</h3>
             <p className="text-[10px] text-slate-500 uppercase tracking-wider">{sensor.location}</p>
           </div>
         </div>
         <div className="text-right">
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-white">{sensor.value.toFixed(1)}</span>
+            <span className={cn("text-2xl font-bold", isDarkMode ? "text-white" : "text-slate-900")}>{sensor.value.toFixed(1)}</span>
             <span className="text-xs text-slate-500">{sensor.unit}</span>
           </div>
           {sensor.status !== 'SAFE' && (
@@ -90,7 +92,13 @@ export default function SensorCard({ sensor }: SensorCardProps) {
               isAnimationActive={false}
             />
             <Tooltip 
-              contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '10px' }}
+              contentStyle={{ 
+                backgroundColor: '#1e293b', 
+                border: 'none', 
+                borderRadius: '8px', 
+                fontSize: '10px',
+                color: '#fff'
+              }}
               itemStyle={{ color: '#fff' }}
               labelStyle={{ display: 'none' }}
             />

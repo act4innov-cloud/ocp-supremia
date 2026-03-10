@@ -9,7 +9,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export default function ProfilePage() {
+export default function ProfilePage({ isDarkMode }: { isDarkMode: boolean }) {
   const user = auth.currentUser;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
@@ -97,8 +97,8 @@ export default function ProfilePage() {
           <User className="text-black" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Mon Profil</h2>
-          <p className="text-slate-400 text-sm">Gérez vos informations personnelles et votre sécurité</p>
+          <h2 className={cn("text-2xl font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Mon Profil</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">Gérez vos informations personnelles et votre sécurité</p>
         </div>
       </div>
 
@@ -121,13 +121,13 @@ export default function ProfilePage() {
         <div className="glass p-8 space-y-6">
           <div className="flex items-center gap-3 mb-2">
             <Camera className="text-ocp-green" size={20} />
-            <h3 className="font-bold text-white">Informations Personnelles</h3>
+            <h3 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Informations Personnelles</h3>
           </div>
 
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div className="flex flex-col items-center gap-4 mb-6">
               <div className="relative group">
-                <div className="w-24 h-24 rounded-full border-2 border-ocp-green/30 overflow-hidden bg-slate-800 relative">
+                <div className="w-24 h-24 rounded-full border-2 border-ocp-green/30 overflow-hidden bg-slate-100 dark:bg-slate-800 relative">
                   {isUploading ? (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
                       <Loader2 className="text-ocp-green animate-spin" size={24} />
@@ -163,7 +163,7 @@ export default function ProfilePage() {
                 type="text" 
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-ocp-green outline-none transition-all"
+                className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:border-ocp-green outline-none transition-all"
                 placeholder="Votre nom"
               />
             </div>
@@ -174,7 +174,7 @@ export default function ProfilePage() {
                 type="text" 
                 value={photoURL}
                 onChange={(e) => setPhotoURL(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-ocp-green outline-none transition-all"
+                className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:border-ocp-green outline-none transition-all"
                 placeholder="https://images.unsplash.com/..."
               />
             </div>
@@ -194,7 +194,7 @@ export default function ProfilePage() {
         <div className="glass p-8 space-y-6">
           <div className="flex items-center gap-3 mb-2">
             <Lock className="text-ocp-green" size={20} />
-            <h3 className="font-bold text-white">Sécurité du Compte</h3>
+            <h3 className={cn("font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Sécurité du Compte</h3>
           </div>
 
           <form onSubmit={handleUpdatePassword} className="space-y-4">
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                 type="password" 
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-ocp-green outline-none transition-all"
+                className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:border-ocp-green outline-none transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -215,7 +215,7 @@ export default function ProfilePage() {
                 type="password" 
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-ocp-green outline-none transition-all"
+                className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:border-ocp-green outline-none transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -230,7 +230,7 @@ export default function ProfilePage() {
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-slate-700"
+              className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-900 dark:text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-700"
             >
               <Lock size={18} />
               Changer le mot de passe

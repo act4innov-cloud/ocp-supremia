@@ -19,7 +19,7 @@ interface SensorConfig {
   location: string;
 }
 
-export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorData[] }) {
+export default function SensorsPage({ onlineSensors, isDarkMode }: { onlineSensors: SensorData[], isDarkMode: boolean }) {
   const [sensors, setSensors] = useState<SensorConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,7 +94,7 @@ export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorDa
       <div className="glass p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Capteurs Détectés en Direct</h3>
+            <h3 className={cn("text-lg font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Capteurs Détectés en Direct</h3>
             <p className="text-sm text-slate-500">Liste des capteurs envoyant des données via MQTT</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20">
@@ -117,11 +117,11 @@ export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorDa
             </thead>
             <tbody className="text-sm">
               {onlineSensors.length > 0 ? onlineSensors.map((s) => (
-                <tr key={s.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                  <td className="py-4 font-bold text-white">{s.name}</td>
-                  <td className="py-4"><span className="bg-slate-800 px-2 py-1 rounded text-xs text-white">{s.type}</span></td>
-                  <td className="py-4 font-mono text-emerald-400">{s.value.toFixed(1)} {s.unit}</td>
-                  <td className="py-4 text-slate-300">{s.location}</td>
+                <tr key={s.id} className={cn("border-b transition-colors", isDarkMode ? "border-white/5 hover:bg-white/5" : "border-slate-200 hover:bg-slate-100")}>
+                  <td className={cn("py-4 font-bold", isDarkMode ? "text-white" : "text-slate-900")}>{s.name}</td>
+                  <td className="py-4"><span className={cn("px-2 py-1 rounded text-xs", isDarkMode ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-700")}>{s.type}</span></td>
+                  <td className="py-4 font-mono text-emerald-600 dark:text-emerald-400">{s.value.toFixed(1)} {s.unit}</td>
+                  <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-600")}>{s.location}</td>
                   <td className="py-4">
                     <span className={cn(
                       "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
@@ -149,7 +149,7 @@ export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorDa
 
         <div className="flex justify-between items-center mb-6 pt-8 border-t border-slate-800">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Inventaire des Capteurs</h3>
+            <h3 className={cn("text-lg font-bold", isDarkMode ? "text-white" : "text-slate-900")}>Inventaire des Capteurs</h3>
             <p className="text-sm text-slate-500">Gestion et configuration des unités ESP enregistrées</p>
           </div>
           <button 
@@ -178,12 +178,12 @@ export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorDa
               {sensors.length > 0 ? sensors.map((s) => {
                 const isOnline = onlineSensors.some(os => os.id === s.id);
                 return (
-                  <tr key={s.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                    <td className="py-4 font-mono text-emerald-400">{s.id}</td>
-                    <td className="py-4"><span className="bg-slate-800 px-2 py-1 rounded text-xs text-white">{s.type}</span></td>
-                    <td className="py-4 font-mono text-xs text-slate-400">{s.mac}</td>
-                    <td className="py-4 font-mono text-xs text-slate-400">{s.ip}</td>
-                    <td className="py-4 text-slate-300">{s.location}</td>
+                  <tr key={s.id} className={cn("border-b transition-colors", isDarkMode ? "border-white/5 hover:bg-white/5" : "border-slate-200 hover:bg-slate-100")}>
+                    <td className="py-4 font-mono text-emerald-600 dark:text-emerald-400">{s.id}</td>
+                    <td className="py-4"><span className={cn("px-2 py-1 rounded text-xs", isDarkMode ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-700")}>{s.type}</span></td>
+                    <td className="py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{s.mac}</td>
+                    <td className="py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{s.ip}</td>
+                    <td className={cn("py-4", isDarkMode ? "text-slate-300" : "text-slate-600")}>{s.location}</td>
                     <td className="py-4">
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
@@ -231,7 +231,7 @@ export default function SensorsPage({ onlineSensors }: { onlineSensors: SensorDa
               className="mt-12 p-8 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-emerald-900/30 rounded-2xl"
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className={cn("text-xl font-bold flex items-center gap-2", isDarkMode ? "text-white" : "text-slate-900")}>
                   <Plus className="text-ocp-green" />
                   {editingSensorId ? 'Modifier le Capteur' : 'Ajouter un Nouveau Capteur'}
                 </h3>

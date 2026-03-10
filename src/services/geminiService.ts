@@ -12,15 +12,16 @@ Ton ton est professionnel, sérieux, convaincant et rassurant. Tu es le garant d
 Réponds toujours en français, de manière structurée.`;
 
 export const chatWithGemini = async (message: string, sensorContext?: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: apiKey || "" });
   const model = "gemini-3-flash-preview";
   const prompt = sensorContext 
     ? `CONTEXTE CAPTEURS ACTUELS:\n${sensorContext}\n\nQUESTION UTILISATEUR: ${message}`
     : message;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("Clé API Gemini manquante");
+    if (!apiKey) {
+      throw new Error("Clé API Gemini manquante. Assurez-vous de configurer GEMINI_API_KEY dans les variables d'environnement de Netlify.");
     }
 
     const response = await ai.models.generateContent({
@@ -40,7 +41,8 @@ export const chatWithGemini = async (message: string, sensorContext?: string) =>
 };
 
 export const speakText = async (text: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: apiKey || "" });
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
