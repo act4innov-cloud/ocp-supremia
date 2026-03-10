@@ -4,8 +4,21 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import sgMail from "@sendgrid/mail";
 import twilio from "twilio";
+import cron from "node-cron";
+import mqtt from "mqtt";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import admin from "firebase-admin";
 
 dotenv.config();
+
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault()
+  });
+}
+const db = admin.firestore();
 
 // Configuration des services tiers (via variables d'environnement)
 const CONFIG = {
@@ -31,12 +44,190 @@ const getTwilioClient = () => {
   return twilioClient;
 };
 
+// --- Reporting System Logic ---
+
+interface SensorStats {
+  id: string;
+  type: string;
+  min: number;
+  max: number;
+  alertCount: number;
+  lastValue: number;
+  status: string;
+}
+
+const sensorStats: Record<string, SensorStats> = {};
+
+// MQTT Connection for Server-side tracking
+const startMqttTracking = async () => {
+  // Fetch MQTT config from a default user or settings
+  // For simplicity, we'll use the default config if we can't find one
+  const defaultMqtt = {
+    broker: "broker.emqx.io",
+    port: 8084,
+    clientId: `supremia_server_${Math.random().toString(16).slice(2, 10)}`
+  };
+
+  const brokerUrl = `wss://${defaultMqtt.broker}:${defaultMqtt.port}`;
+  const client = mqtt.connect(brokerUrl, { clientId: defaultMqtt.clientId });
+
+  client.on("connect", () => {
+    console.log("[SERVER] ✅ MQTT Connected for tracking");
+    client.subscribe("supremia/data/#");
+  });
+
+  client.on("message", (topic, message) => {
+    try {
+      const payload = message.toString();
+      const data = JSON.parse(payload);
+      
+      const topicParts = topic.split('/');
+      const topicId = topicParts[topicParts.length - 1];
+      let sensorId = "";
+      if (data.sensor_name && data.sensor_name.startsWith('OCP_')) {
+        sensorId = data.sensor_name;
+      } else if (topicId && topicId.startsWith('OCP_')) {
+        sensorId = topicId;
+      }
+
+      if (!sensorId) return;
+
+      const value = data.temperature ?? data.temp ?? data.humidity ?? data.hum ?? data.co2_ppm ?? data.co2 ?? data.smoke_ppm ?? data.smoke ?? data.value ?? data.val;
+      
+      if (value !== undefined) {
+        if (!sensorStats[sensorId]) {
+          sensorStats[sensorId] = {
+            id: sensorId,
+            type: data.type || "GENERIC",
+            min: value,
+            max: value,
+            alertCount: 0,
+            lastValue: value,
+            status: "SAFE"
+          };
+        } else {
+          sensorStats[sensorId].min = Math.min(sensorStats[sensorId].min, value);
+          sensorStats[sensorId].max = Math.max(sensorStats[sensorId].max, value);
+          sensorStats[sensorId].lastValue = value;
+        }
+        
+        // Simple status check for alert count
+        const status = getStatus(sensorStats[sensorId].type, value);
+        if (status !== "SAFE" && sensorStats[sensorId].status === "SAFE") {
+          sensorStats[sensorId].alertCount++;
+        }
+        sensorStats[sensorId].status = status;
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  });
+};
+
+const getStatus = (type: string, value: number): string => {
+  if (type === 'TEMP') return value > 35 ? 'DANGER' : (value > 30 ? 'WARNING' : 'SAFE');
+  if (type === 'HUM') return (value < 20 || value > 80) ? 'DANGER' : ((value < 30 || value > 70) ? 'WARNING' : 'SAFE');
+  if (type === 'CO2') return value > 1500 ? 'DANGER' : (value > 1000 ? 'WARNING' : 'SAFE');
+  if (type === 'SMOKE' || type === 'LPG') return value > 200 ? 'DANGER' : (value > 100 ? 'WARNING' : 'SAFE');
+  if (type === 'H2S') return value > 10 ? 'DANGER' : (value > 5 ? 'WARNING' : 'SAFE');
+  if (type === 'CO') return value > 50 ? 'DANGER' : (value > 30 ? 'WARNING' : 'SAFE');
+  return 'SAFE';
+};
+
+const generateAndStoreReport = async (type: "DAILY" | "WEEKLY" | "MONTHLY") => {
+  console.log(`[SERVER] 📊 Generating ${type} report...`);
+  
+  const timestamp = new Date().toISOString();
+  const reportId = `${type}_${Date.now()}`;
+  
+  const reportData = Object.values(sensorStats).map(s => ({
+    sensorId: s.id,
+    sensorType: s.type,
+    minVal: s.min,
+    maxVal: s.max,
+    alertCount: s.alertCount,
+    status: s.status
+  }));
+
+  if (reportData.length === 0) {
+    console.log("[SERVER] ⚠️ No sensor data available for report");
+    return;
+  }
+
+  // Generate PDF
+  const doc = new jsPDF();
+  doc.setFontSize(20);
+  doc.text(`Rapport ${type} - SUPREMIA`, 14, 22);
+  doc.setFontSize(11);
+  doc.setTextColor(100);
+  doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 30);
+
+  const tableData = reportData.map(s => [
+    s.sensorId,
+    s.sensorType,
+    s.minVal.toFixed(2),
+    s.maxVal.toFixed(2),
+    s.alertCount.toString(),
+    s.status
+  ]);
+
+  (doc as any).autoTable({
+    startY: 40,
+    head: [['ID', 'TYPE', 'VAL Min', 'VAL Max', 'ALERTE', 'STATUT']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: { fillColor: [0, 150, 136] }
+  });
+
+  const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+  // Store in Firestore
+  try {
+    await db.collection("reports").doc(reportId).set({
+      id: reportId,
+      type,
+      timestamp,
+      data: reportData,
+      pdfBase64
+    });
+    console.log(`[SERVER] ✅ Report ${reportId} stored successfully`);
+    
+    // Reset stats for next period
+    Object.keys(sensorStats).forEach(id => {
+      const s = sensorStats[id];
+      sensorStats[id] = {
+        ...s,
+        min: s.lastValue,
+        max: s.lastValue,
+        alertCount: 0
+      };
+    });
+  } catch (error) {
+    console.error("[SERVER] ❌ Error storing report:", error);
+  }
+};
+
+// Cron Jobs
+// DAILY: 6H, 14H, 22H
+cron.schedule("0 6,14,22 * * *", () => generateAndStoreReport("DAILY"));
+
+// WEEKLY: Monday at 8H
+cron.schedule("0 8 * * 1", () => generateAndStoreReport("WEEKLY"));
+
+// MONTHLY: 1st of month at 0H
+cron.schedule("0 0 1 * *", () => generateAndStoreReport("MONTHLY"));
+
+// --- End Reporting System Logic ---
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(cors());
   app.use(express.json());
+
+  // Start MQTT Tracking
+  startMqttTracking();
 
   // Log all requests
   app.use((req, res, next) => {
@@ -52,6 +243,9 @@ async function startServer() {
       notifications: {
         email: !!CONFIG.SENDGRID_KEY,
         twilio: !!(CONFIG.TWILIO_SID && CONFIG.TWILIO_TOKEN)
+      },
+      reports: {
+        trackedSensors: Object.keys(sensorStats).length
       }
     });
   });

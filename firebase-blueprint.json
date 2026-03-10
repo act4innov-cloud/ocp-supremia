@@ -51,6 +51,32 @@
           }
         }
       }
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Automatically generated sensor report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sensorId": { "type": "string" },
+              "sensorType": { "type": "string" },
+              "minVal": { "type": "number" },
+              "maxVal": { "type": "number" },
+              "alertCount": { "type": "integer" },
+              "status": { "type": "string" }
+            }
+          }
+        },
+        "pdfBase64": { "type": "string" }
+      },
+      "required": ["id", "type", "timestamp", "data"]
     }
   },
   "firestore": {
@@ -65,6 +91,10 @@
     "/settings/{userId}": {
       "schema": "AppConfig",
       "description": "User specific settings"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Generated reports"
     }
   }
 }

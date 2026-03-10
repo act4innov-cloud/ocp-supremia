@@ -104,5 +104,10 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId) && isValidSettings(request.resource.data);
     }
+
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }
