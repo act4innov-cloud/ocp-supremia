@@ -37,7 +37,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : true;
+  });
   const [mqttConfig, setMqttConfig] = useState<MQTTConfig>(configService.getConfig().mqtt);
   const [notifConfig, setNotifConfig] = useState<NotificationConfig>({
     emailEnabled: true,
@@ -134,6 +137,7 @@ export default function App() {
 
   // Auto-save theme only
   useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     if (!user || !authReady) return;
     const settingsRef = doc(db, 'settings', user.uid);
     setDoc(settingsRef, { isDarkMode }, { merge: true }).catch(e => 
@@ -443,14 +447,14 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-all duration-300 lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-all duration-300",
         isDarkMode ? "bg-slate-900/80 border-white/5" : "bg-white/80 border-slate-200 shadow-xl",
         "backdrop-blur-xl border-r",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -470,7 +474,7 @@ export default function App() {
           </div>
           <button 
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-2 text-slate-400 hover:text-emerald-500"
+            className="p-2 text-slate-400 hover:text-emerald-500"
           >
             <X size={20} />
           </button>
@@ -541,7 +545,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className={cn("lg:hidden p-2 rounded-lg transition-colors", isDarkMode ? "bg-ocp-green/20 text-ocp-green" : "bg-ocp-green/10 text-ocp-green")}
+              className={cn("p-2 rounded-lg transition-colors", isDarkMode ? "bg-ocp-green/20 text-ocp-green" : "bg-ocp-green/10 text-ocp-green")}
             >
               <Menu size={20} />
             </button>

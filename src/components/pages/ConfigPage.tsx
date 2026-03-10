@@ -294,21 +294,30 @@ export default function ConfigPage({ isDarkMode, setIsDarkMode, notifConfig, set
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Paramètres d'Affichage</h3>
         </div>
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-slate-200 dark:bg-slate-800 rounded-lg">
-                <Moon className="text-slate-600 dark:text-slate-400" size={20} />
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-slate-200 dark:bg-slate-800 rounded-lg">
+                    <Moon className="text-slate-600 dark:text-slate-400" size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Mode Sombre</h4>
+                    <p className="text-[10px] text-slate-500">Interface sombre pour réduire la fatigue visuelle</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-ocp-green"></div>
+                </label>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Mode Sombre</h4>
-                <p className="text-[10px] text-slate-500">Interface sombre pour réduire la fatigue visuelle</p>
-              </div>
+              <button 
+                onClick={handleSave}
+                className="w-full bg-ocp-green hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 active:scale-95"
+              >
+                <CheckCircle2 size={18} />
+                Sauvegarder les Préférences d'Affichage
+              </button>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} className="sr-only peer" />
-              <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-ocp-green"></div>
-            </label>
-          </div>
         </div>
       </div>
     </motion.div>
