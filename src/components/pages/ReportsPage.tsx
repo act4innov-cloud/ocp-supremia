@@ -3,7 +3,7 @@ import { FileText, Download, Calendar, Archive, FileDown, Loader2 } from 'lucide
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { db } from '../../firebase';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
 function cn(...inputs: ClassValue[]) {
@@ -31,6 +31,8 @@ export default function ReportsPage({ isDarkMode }: { isDarkMode: boolean }) {
       });
       setReports(reportsData);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'reports');
     });
 
     return () => unsubscribe();

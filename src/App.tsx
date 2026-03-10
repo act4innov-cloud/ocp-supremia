@@ -68,6 +68,8 @@ export default function App() {
       });
       setInventory(inv);
       inventoryRef.current = inv;
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'sensors');
     });
 
     // Sync User Profile
@@ -82,6 +84,8 @@ export default function App() {
           createdAt: new Date()
         }).catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}`));
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
     const settingsRef = doc(db, 'settings', user.uid);
@@ -100,6 +104,8 @@ export default function App() {
           handleFirestoreError(e, OperationType.WRITE, `settings/${user.uid}`)
         );
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `settings/${user.uid}`);
     });
 
     return () => {
@@ -189,17 +195,15 @@ export default function App() {
           const topicId = topicParts[topicParts.length - 1];
           
           // Déterminer l'ID du capteur : 
-          // 1. Priorité absolue au champ sensor_name s'il commence par OCP_
-          // 2. Sinon le dernier segment du topic s'il commence par OCP_
-          let sensorId = "";
-          if (data.sensor_name && data.sensor_name.startsWith('OCP_')) {
-            sensorId = data.sensor_name;
-          } else if (topicId && topicId.startsWith('OCP_')) {
-            sensorId = topicId;
-          }
+          // 1. On cherche un ID dans le payload (sensor_id ou sensor_name) ou le topic
+          // 2. On valide qu'au moins un de ces identifiants commence par OCP_ (sécurité OCP)
+          let sensorId = data.sensor_id || data.sensor_name || topicId;
           
-          // Filtrage strict : on n'accepte QUE les capteurs commençant par OCP_
-          if (!sensorId || !sensorId.startsWith('OCP_')) {
+          const isOcpSensor = (data.sensor_name && typeof data.sensor_name === 'string' && data.sensor_name.startsWith('OCP_')) || 
+                              (data.sensor_id && typeof data.sensor_id === 'string' && data.sensor_id.startsWith('OCP_')) || 
+                              (topicId && topicId.startsWith('OCP_'));
+          
+          if (!isOcpSensor || !sensorId) {
             return;
           }
 
@@ -217,11 +221,13 @@ export default function App() {
             updates.push({ id: `${sensorId}_HUM`, name: `${sensorName} Hum`, type: 'HUM', value: data.humidity ?? data.hum, unit: '%', location: location });
           } else if (data.type === 'CO2' || data.type === 'CO2_TVOC') {
             const co2Val = data.co2_ppm ?? data.co2 ?? data.value;
+            const tvocVal = data.tvoc_ppb ?? data.tvoc;
+            
             if (co2Val !== undefined) {
-              updates.push({ id: sensorId, name: sensorName, type: 'CO2', value: co2Val, unit: 'ppm', location: location });
+              updates.push({ id: sensorId, name: sensorName, type: 'CO2', value: Number(co2Val), unit: 'ppm', location: location });
             }
-            if (data.tvoc !== undefined) {
-              updates.push({ id: `${sensorId}_TVOC`, name: `${sensorName} TVOC`, type: 'VOC', value: data.tvoc, unit: 'ppb', location: location });
+            if (tvocVal !== undefined) {
+              updates.push({ id: `${sensorId}_TVOC`, name: `${sensorName} TVOC`, type: 'VOC', value: Number(tvocVal), unit: 'ppb', location: location });
             }
           } else if (data.type === 'SMOKE' || data.type === 'SMOKE_LPG') {
             const smokeVal = data.smoke_ppm ?? data.smoke;
@@ -728,7 +734,7 @@ export default function App() {
             )}
             {activeTab === 'ai' && (
               // @ts-ignore
-              <AIPage key="ai" isDarkMode={isDarkMode} />
+              <AIPage key="ai" isDarkMode={isDarkMode} sensors={sensors} />
             )}
             {activeTab === 'reports' && (
               // @ts-ignore

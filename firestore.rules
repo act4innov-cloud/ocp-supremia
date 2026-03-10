@@ -30,6 +30,15 @@ service cloud.firestore {
     //   - notifConfig: map
     //   - mqttConfig: map
     //
+    // Collection: reports
+    // Document ID: reportId
+    // Fields:
+    //   - id: string
+    //   - type: string (['DAILY', 'WEEKLY', 'MONTHLY'])
+    //   - timestamp: string (ISO date)
+    //   - pdfBase64: string
+    //   - data: array
+    //
     // ===============================================================
 
     // ===============================================================
@@ -47,7 +56,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-         (request.auth.token.email == "act4innov@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "act4innov@gmail.com") ||
          (request.auth.token.email == "admin@supremia.ma"));
     }
 
@@ -64,9 +73,9 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(data, ['uid', 'email', 'displayName', 'role', 'createdAt']) &&
+      return hasOnlyAllowedFields(data, ['uid', 'email', 'displayName', 'role', 'createdAt', 'photoURL']) &&
              data.uid == request.auth.uid &&
-             isValidEmail(data.email) &&
+             (data.email == "" || isValidEmail(data.email)) &&
              data.role in ['admin', 'user'];
     }
 
@@ -87,6 +96,10 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /test/connection {
+      allow read: if true;
+    }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();

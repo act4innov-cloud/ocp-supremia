@@ -85,13 +85,16 @@ export const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
+    if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+      // Silently handle cancellation
+      return null;
+    }
+    
     console.error('Auth Error Detail:', error);
     if (error.code === 'auth/unauthorized-domain') {
       alert("Erreur : Ce domaine n'est pas autorisé dans la console Firebase. Veuillez ajouter les domaines suivants aux 'Domaines autorisés' dans Authentication > Settings : \n- ais-dev-vq2upgkmoko2wa5pcdvbo3-136729896699.europe-west2.run.app\n- ais-pre-vq2upgkmoko2wa5pcdvbo3-136729896699.europe-west2.run.app");
     } else if (error.code === 'auth/popup-blocked') {
       alert("Erreur : Le popup a été bloqué. Veuillez autoriser les popups pour ce site.");
-    } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-      // Silently handle cancellation
     } else if (error.code === 'auth/internal-error' || error.message.includes('INTERNAL ASSERTION FAILED')) {
       alert("Une erreur interne est survenue. Veuillez rafraîchir la page et réessayer.");
     } else {
