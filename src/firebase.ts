@@ -116,6 +116,8 @@ export const loginWithEmail = async (email: string, pass: string) => {
     console.error('Email Login Error:', error);
     if (error.code === 'auth/operation-not-allowed') {
       alert("Erreur : La connexion par Email/Mot de passe n'est pas activée dans votre console Firebase. Veuillez l'activer dans l'onglet Authentication > Sign-in method.");
+    } else if (error.code === 'auth/invalid-credential') {
+      alert("Erreur de connexion : Email ou mot de passe incorrect. Veuillez vérifier vos identifiants ou vous inscrire si vous n'avez pas de compte.");
     } else {
       alert("Erreur de connexion : " + (error.message || "Identifiants invalides"));
     }

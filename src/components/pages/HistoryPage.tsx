@@ -56,12 +56,29 @@ export default function HistoryPage({ isDarkMode }: { isDarkMode: boolean }) {
     doc.setTextColor(100);
     doc.text(`Généré le : ${new Date().toLocaleString()}`, 14, 30);
 
-    const tableData = filteredEvents.map(ev => [
-      ev.timestamp?.toDate().toLocaleString() || 'N/A',
-      ev.severity,
-      ev.sensorId,
-      ev.message.replace(/\n/g, ' ')
-    ]);
+    const tableData = filteredEvents.map(ev => {
+      // Clean up message for PDF rendering (strip emojis and special chars that break jsPDF default font)
+      // jsPDF default font (Helvetica) doesn't support emojis and some unicode symbols
+      const cleanMsg = ev.message
+        .replace(/✅/g, '[OK]')
+        .replace(/⚠️/g, '[ATTENTION]')
+        .replace(/🚨/g, '[DANGER]')
+        .replace(/🟢/g, '[EN LIGNE]')
+        .replace(/🔴/g, '[HORS LIGNE]')
+        .replace(/➔/g, '->')
+        // Remove other emojis and non-standard characters using a robust regex
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+        // Replace newlines with spaces for table compatibility
+        .replace(/\n/g, ' ')
+        .trim();
+
+      return [
+        ev.timestamp?.toDate().toLocaleString() || 'N/A',
+        ev.severity,
+        ev.sensorId,
+        cleanMsg
+      ];
+    });
 
     autoTable(doc, {
       startY: 35,

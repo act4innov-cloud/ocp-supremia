@@ -67,10 +67,16 @@ export const chatWithGeminiStream = async (message: string, sensorContext?: stri
   }
 };
 
+let isGeminiTTSAvailable = true;
+let lastQuotaErrorTime = 0;
+const QUOTA_RETRY_DELAY = 1000 * 60 * 60 * 4; // Retry after 4 hours if quota was hit
+
 export const speakText = async (text: string) => {
   // Fallback function using browser's native SpeechSynthesis
   const speakWithBrowser = (textToSpeak: string) => {
     if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech to avoid overlap
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.lang = 'fr-FR';
       utterance.rate = 1.0;
@@ -78,6 +84,13 @@ export const speakText = async (text: string) => {
       window.speechSynthesis.speak(utterance);
     }
   };
+
+  // Check if we should even try Gemini TTS
+  const now = Date.now();
+  if (!isGeminiTTSAvailable && now - lastQuotaErrorTime < QUOTA_RETRY_DELAY) {
+    speakWithBrowser(text);
+    return;
+  }
 
   const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
   if (!apiKey) {
@@ -102,6 +115,9 @@ export const speakText = async (text: string) => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
+      // Reset availability if successful
+      isGeminiTTSAvailable = true;
+      
       const binaryString = window.atob(base64Audio);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -131,8 +147,15 @@ export const speakText = async (text: string) => {
       // If no audio data, fallback to browser
       speakWithBrowser(text);
     }
-  } catch (error) {
-    console.error("TTS Error, falling back to browser speech:", error);
+  } catch (error: any) {
+    // Check if it's a quota error (429)
+    if (error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || JSON.stringify(error).includes('429')) {
+      console.warn("Gemini TTS Quota exceeded (100 req/day). Switching to browser speech for the next 4 hours.");
+      isGeminiTTSAvailable = false;
+      lastQuotaErrorTime = Date.now();
+    } else {
+      console.error("TTS Error, falling back to browser speech:", error);
+    }
     speakWithBrowser(text);
   }
 };

@@ -639,7 +639,7 @@ export default function App() {
                 <div className="flex items-center gap-1.5">
                   <span className={cn("w-1.5 h-1.5 rounded-full", isMqttConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
                   <span className={cn("text-[10px] font-bold uppercase tracking-wider", isMqttConnected ? "text-emerald-500" : "text-rose-500")}>
-                    {isMqttConnected ? "Gateway connectée" : "Gateway déconnectée"}
+                    {isMqttConnected ? "Bitaboute connectée" : "Bitaboute déconnectée"}
                   </span>
                   {!isMqttConnected && (
                     <button 

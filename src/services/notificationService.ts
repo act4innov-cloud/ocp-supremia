@@ -1,6 +1,6 @@
 
 import { speakText } from './geminiService';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export interface NotificationConfig {
@@ -132,13 +132,13 @@ class NotificationService {
     }
 
     const status = isConnected ? 'Connecté' : 'Déconnecté';
-    const message = `Passerelle MQTT ${status}.`;
+    const message = `Bitaboute MQTT ${status}.`;
     
     // Log to Firestore
-    this.logEvent('GATEWAY', message, isConnected ? 'INFO' : 'ERROR', 'GATEWAY');
+    this.logEvent('GATEWAY', message, isConnected ? 'INFO' : 'ERROR', 'BITABOUTE');
 
     this.queueSpeech(message);
-    console.log(`🔔 Notification Gateway: ${message}`);
+    console.log(`🔔 Notification Bitaboute: ${message}`);
   }
 
   async sendSensorError(sensorName: string, error: string) {
@@ -152,6 +152,12 @@ class NotificationService {
   }
 
   private async logEvent(type: string, message: string, severity: 'INFO' | 'WARNING' | 'DANGER' | 'ERROR', sensorId: string) {
+    // Only log to Firestore if a user is authenticated
+    if (!db || !auth.currentUser) {
+      console.log(`[NOTIF-LOG-SKIP] User not authenticated, skipping Firestore log for: ${type}`);
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'notifications'), {
         type,
@@ -167,6 +173,12 @@ class NotificationService {
 
   private queueSpeech(text: string) {
     if (!this.ttsEnabled) return;
+    
+    // Limit queue size to 5 messages to avoid long speech backlogs
+    if (this.speechQueue.length >= 5) {
+      this.speechQueue.shift(); // Remove oldest
+    }
+    
     this.speechQueue.push(text);
     this.processSpeechQueue();
   }

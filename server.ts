@@ -9,16 +9,21 @@ import mqtt from "mqtt";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
+import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
 
 dotenv.config();
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.applicationDefault()
+    credential: admin.credential.applicationDefault(),
+    projectId: firebaseConfig.projectId
   });
+  console.log(`[SERVER] 🔥 Firebase Admin initialized for project: ${firebaseConfig.projectId}`);
 }
-const db = admin.firestore();
+const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+console.log(`[SERVER] 📂 Firestore connected to database: ${firebaseConfig.firestoreDatabaseId}`);
 
 // Configuration des services tiers (via variables d'environnement)
 const CONFIG = {
@@ -83,12 +88,7 @@ const startMqttTracking = async () => {
       
       const topicParts = topic.split('/');
       const topicId = topicParts[topicParts.length - 1];
-      let sensorId = "";
-      if (data.sensor_name && data.sensor_name.startsWith('OCP_')) {
-        sensorId = data.sensor_name;
-      } else if (topicId && topicId.startsWith('OCP_')) {
-        sensorId = topicId;
-      }
+      let sensorId = data.sensor_name || data.id || topicId;
 
       if (!sensorId) return;
 
@@ -140,7 +140,7 @@ const generateAndStoreReport = async (type: "DAILY" | "WEEKLY" | "MONTHLY") => {
   const timestamp = new Date().toISOString();
   const reportId = `${type}_${Date.now()}`;
   
-  const reportData = Object.values(sensorStats).map(s => ({
+  let reportData = Object.values(sensorStats).map(s => ({
     sensorId: s.id,
     sensorType: s.type,
     minVal: s.min,
@@ -149,9 +149,31 @@ const generateAndStoreReport = async (type: "DAILY" | "WEEKLY" | "MONTHLY") => {
     status: s.status
   }));
 
+  // Fallback: If no live stats, try to get some sensors from DB to at least show a template
   if (reportData.length === 0) {
-    console.log("[SERVER] ⚠️ No sensor data available for report");
-    return;
+    console.log("[SERVER] ⚠️ No live sensor data, checking database...");
+    try {
+      const sensorsSnap = await db.collection("sensors").get();
+      if (!sensorsSnap.empty) {
+        reportData = sensorsSnap.docs.map(doc => {
+          const d = doc.data();
+          return {
+            sensorId: d.id,
+            sensorType: d.type,
+            minVal: 0,
+            maxVal: 0,
+            alertCount: 0,
+            status: "INCONNU"
+          };
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching fallback sensors:", e);
+    }
+  }
+
+  if (reportData.length === 0) {
+    throw new Error("Aucune donnée de capteur disponible pour générer le rapport.");
   }
 
   // Generate PDF
@@ -179,7 +201,11 @@ const generateAndStoreReport = async (type: "DAILY" | "WEEKLY" | "MONTHLY") => {
     headStyles: { fillColor: [0, 150, 136] }
   });
 
-  const pdfBase64 = doc.output('datauristring').split(',')[1];
+  // In Node.js, output('datauristring') might not be reliable
+  // Use raw output and convert to base64 manually
+  const pdfOutput = doc.output();
+  const pdfBase64 = Buffer.from(pdfOutput, 'binary').toString('base64');
+  console.log(`[SERVER] 📄 PDF generated, size: ${pdfOutput.length} bytes, base64 length: ${pdfBase64.length}`);
 
   // Store in Firestore
   try {
@@ -369,6 +395,22 @@ async function startServer() {
       }
       console.error("[SERVER] ❌ Erreur Twilio SMS:", errorMessage);
       res.status(500).json({ success: false, error: errorMessage });
+    }
+  });
+
+  // API Routes for Reports
+  app.post("/api/reports/generate", async (req, res) => {
+    const { type } = req.body;
+    if (!["DAILY", "WEEKLY", "MONTHLY"].includes(type)) {
+      return res.status(400).json({ success: false, error: "Type de rapport invalide" });
+    }
+
+    try {
+      await generateAndStoreReport(type as any);
+      res.json({ success: true, message: `Rapport ${type} généré avec succès` });
+    } catch (error: any) {
+      console.error("[SERVER] ❌ Erreur génération manuelle:", error.message);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
