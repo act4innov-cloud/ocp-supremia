@@ -132,13 +132,13 @@ class NotificationService {
     }
 
     const status = isConnected ? 'Connecté' : 'Déconnecté';
-    const message = `Bitaboute MQTT ${status}.`;
+    const message = `Gateway MQTT ${status}.`;
     
     // Log to Firestore
-    this.logEvent('GATEWAY', message, isConnected ? 'INFO' : 'ERROR', 'BITABOUTE');
+    this.logEvent('GATEWAY', message, isConnected ? 'INFO' : 'ERROR', 'GATEWAY');
 
     this.queueSpeech(message);
-    console.log(`🔔 Notification Bitaboute: ${message}`);
+    console.log(`🔔 Notification Gateway: ${message}`);
   }
 
   async sendSensorError(sensorName: string, error: string) {
