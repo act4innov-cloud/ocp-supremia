@@ -1,5 +1,5 @@
 {
   "name": "My supremia dashboard app",
   "description": "Dashboard industriel intelligent avec monitoring MQTT en temps réel et assistant expert HSE propulsé par Gemini AI.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

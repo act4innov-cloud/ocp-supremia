@@ -9,6 +9,7 @@ import SensorsPage from './components/pages/SensorsPage';
 import SafetyPage from './components/pages/SafetyPage';
 import AIPage from './components/pages/AIPage';
 import ReportsPage from './components/pages/ReportsPage';
+import HistoryPage from './components/pages/HistoryPage';
 import ConfigPage from './components/pages/ConfigPage';
 import LoginPage from './components/pages/LoginPage';
 import ProfilePage from './components/pages/ProfilePage';
@@ -36,6 +37,9 @@ export default function App() {
   const prevOnlineStatusRef = useRef<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMqttConnected, setIsMqttConnected] = useState(false);
+  const [mqttError, setMqttError] = useState<string | null>(null);
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -49,6 +53,18 @@ export default function App() {
     emailRecipient: 'act4innov@gmail.com',
     phoneRecipient: '+212600000000',
   });
+
+  // Delayed TTS Activation to avoid noise on startup
+  useEffect(() => {
+    if (user && authReady) {
+      const timer = setTimeout(() => {
+        notificationService.enableTTS();
+      }, 5000); // 5 seconds delay
+      return () => clearTimeout(timer);
+    } else {
+      notificationService.disableTTS();
+    }
+  }, [user, authReady]);
 
   // Auth Listener
   useEffect(() => {
@@ -102,8 +118,19 @@ export default function App() {
           configService.saveMQTTConfig(data.mqttConfig);
         }
       } else {
-        // Initialize default settings in Firestore
-        setDoc(settingsRef, { isDarkMode, notifConfig, mqttConfig }).catch(e => 
+        // Initialize default settings in Firestore ONLY if they don't exist
+        // We use the values from the state at the moment of the snapshot
+        setDoc(settingsRef, { 
+          isDarkMode: true, 
+          notifConfig: {
+            emailEnabled: true,
+            whatsappEnabled: true,
+            smsEnabled: false,
+            emailRecipient: 'act4innov@gmail.com',
+            phoneRecipient: '+212600000000',
+          }, 
+          mqttConfig: configService.getConfig().mqtt 
+        }).catch(e => 
           handleFirestoreError(e, OperationType.WRITE, `settings/${user.uid}`)
         );
       }
@@ -161,23 +188,83 @@ export default function App() {
     notificationService.updateConfig(notifConfig);
   }, [notifConfig]);
 
+  // Timer pour l'heure (séparé du MQTT pour éviter les re-renders inutiles du client)
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleLogout = async () => {
+    notificationService.disableTTS();
+    await logout();
+  };
+
   // Connexion MQTT Réelle
   useEffect(() => {
-    const brokerUrl = `wss://${mqttConfig.broker}:${mqttConfig.port}`;
+    let isMounted = true;
+    // Dans un navigateur, si le site est en HTTPS, on DOIT utiliser WSS.
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    // EMQX and many others use /mqtt path for websockets, but some don't.
+    // We'll try to be smart about it.
+    const path = mqttConfig.broker.includes('emqx') || mqttConfig.broker.includes('mosquitto') ? '/mqtt' : '';
+    const brokerUrl = `${protocol}://${mqttConfig.broker}:${mqttConfig.port}${path}`;
     const baseTopic = 'supremia/data';
     const subscriptionTopic = `${baseTopic}/#`;
     
-    console.log('🔌 Connexion au broker MQTT...', brokerUrl);
+    console.log(`🔌 Connexion au broker MQTT (${protocol})...`, brokerUrl);
+    
     const client = mqtt.connect(brokerUrl, {
-      clientId: mqttConfig.clientId
+      clientId: `${mqttConfig.clientId}_${Math.random().toString(16).slice(2, 6)}`,
+      clean: true,
+      connectTimeout: 40000, // Increased to 40s to avoid connack timeout
+      reconnectPeriod: 5000,
+      keepalive: 60,
+      protocolVersion: 4,
+      rejectUnauthorized: false,
+      reschedulePings: true
     });
 
-    client.on('connect', () => {
+    const handleConnect = () => {
+      if (!isMounted) return;
       console.log('✅ Connecté au broker MQTT');
-      client.subscribe(subscriptionTopic);
+      setIsMqttConnected(true);
+      setMqttError(null);
+      notificationService.sendMqttStatusChange(true);
+      client.subscribe(subscriptionTopic, (err) => {
+        if (err && isMounted) {
+          if (err.message !== 'client disconnecting') {
+            console.error('❌ Erreur de souscription:', err.message);
+          }
+        }
+      });
+    };
+
+    client.on('connect', handleConnect);
+
+    client.on('close', () => {
+      if (isMounted) {
+        console.log('❌ Connexion MQTT fermée');
+        setIsMqttConnected(false);
+        notificationService.sendMqttStatusChange(false);
+      }
+    });
+
+    client.on('error', (err) => {
+      if (!isMounted) return;
+      // Ignorer l'erreur "client disconnecting" qui est normale lors du démontage
+      if (err.message !== 'client disconnecting') {
+        console.error('⚠️ Erreur MQTT:', err.message);
+        setMqttError(err.message);
+      }
+      setIsMqttConnected(false);
+    });
+
+    client.on('reconnect', () => {
+      if (isMounted) console.log('🔄 Tentative de reconnexion MQTT...');
     });
 
     client.on('message', (receivedTopic, message) => {
+      if (!isMounted) return;
       if (receivedTopic.startsWith(baseTopic)) {
         try {
           const payload = message.toString().trim();
@@ -313,13 +400,22 @@ export default function App() {
             });
             return next;
           });
-        } catch (e) { console.error('❌ Erreur MQTT:', e); }
+        } catch (e) { 
+          console.error('❌ Erreur Traitement MQTT:', e); 
+          notificationService.sendSensorError('MQTT', (e as Error).message);
+        }
       }
     });
 
-    const timeTimer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => { client.end(); clearInterval(timeTimer); };
-  }, [mqttConfig]);
+    return () => { 
+      isMounted = false;
+      if (client.connected) {
+        client.end(true); 
+      } else {
+        client.end();
+      }
+    };
+  }, [mqttConfig, reconnectTrigger]);
 
   // Surveillance de la connectivité (Online/Offline)
   useEffect(() => {
@@ -487,6 +583,7 @@ export default function App() {
             { id: 'ai', icon: Brain, label: 'Analyse IA' },
             { id: 'safety', icon: ShieldAlert, label: 'Sécurité ISO' },
             { id: 'reports', icon: FileText, label: 'Rapports' },
+            { id: 'history', icon: Clock, label: 'Historique' },
             { id: 'config', icon: Settings, label: 'Configuration' },
             { id: 'profile', icon: UserIcon, label: 'Mon Profil' },
           ].map((item) => (
@@ -520,19 +617,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-
-        <div className={cn("p-4 border-t transition-colors duration-300", isDarkMode ? "border-white/5" : "border-slate-100")}>
-          <div className={cn("glass p-4", isDarkMode ? "bg-white/5 border-white/10" : "bg-emerald-50/50 border-emerald-100")}>
-            <div className="flex items-center gap-2 mb-2">
-              <Database size={14} className="text-ocp-green" />
-              <span className={cn("text-xs font-bold uppercase", isDarkMode ? "text-slate-400" : "text-emerald-800")}>MQTT BROKER</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className={cn("text-[10px] font-mono", isDarkMode ? "text-emerald-400" : "text-emerald-600 font-bold")}>CONNECTED: {mqttConfig.broker}</span>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -551,10 +635,26 @@ export default function App() {
             </button>
             <div>
               <h2 className={cn("text-lg lg:text-xl font-bold", isDarkMode ? "text-white" : "text-black")}>Dashboard Industriel</h2>
-              <p className="text-[10px] lg:text-xs text-slate-500 flex items-center gap-2">
-                <Clock size={12} />
-                Dernière mise à jour: {currentTime.toLocaleTimeString()}
-              </p>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("w-1.5 h-1.5 rounded-full", isMqttConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", isMqttConnected ? "text-emerald-500" : "text-rose-500")}>
+                    {isMqttConnected ? "Gateway connectée" : "Gateway déconnectée"}
+                  </span>
+                  {!isMqttConnected && (
+                    <button 
+                      onClick={() => setReconnectTrigger(prev => prev + 1)}
+                      className="ml-2 text-[8px] bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold uppercase"
+                    >
+                      Reconnecter
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] lg:text-xs text-slate-500 flex items-center gap-2">
+                  <Clock size={12} />
+                  Dernière mise à jour: {currentTime.toLocaleTimeString()}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -590,7 +690,7 @@ export default function App() {
                     >
                       {user.displayName || 'Utilisateur'}
                     </button>
-                    <button onClick={logout} className="text-[10px] text-rose-500 hover:underline flex items-center gap-1">
+                    <button onClick={handleLogout} className="text-[10px] text-rose-500 hover:underline flex items-center gap-1">
                       <LogOut size={10} /> Déconnexion
                     </button>
                   </div>
@@ -757,6 +857,10 @@ export default function App() {
               // @ts-ignore
               <ReportsPage key="reports" isDarkMode={isDarkMode} />
             )}
+            {activeTab === 'history' && (
+              // @ts-ignore
+              <HistoryPage key="history" isDarkMode={isDarkMode} />
+            )}
             {activeTab === 'profile' && (
               // @ts-ignore
               <ProfilePage key="profile" isDarkMode={isDarkMode} />
@@ -770,6 +874,9 @@ export default function App() {
                 setNotifConfig={setNotifConfig}
                 mqttConfig={mqttConfig}
                 setMqttConfig={setMqttConfig}
+                isMqttConnected={isMqttConnected}
+                mqttError={mqttError}
+                onReconnect={() => setReconnectTrigger(prev => prev + 1)}
                 onSave={handleSaveSettings}
               />
             )}

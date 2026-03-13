@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, ThinkingLevel } from "@google/genai";
 
 const SYSTEM_INSTRUCTION = `Tu es SupremBot, un expert senior en Hygiène, Sécurité et Environnement (HSE) et sécurité industrielle, spécialisé pour les complexes industriels comme SUPREMIA.
 
@@ -30,6 +30,7 @@ export const chatWithGemini = async (message: string, sensorContext?: string) =>
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.7,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       },
     });
 
@@ -40,8 +41,50 @@ export const chatWithGemini = async (message: string, sensorContext?: string) =>
   }
 };
 
-export const speakText = async (text: string) => {
+export const chatWithGeminiStream = async (message: string, sensorContext?: string) => {
   const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+  const model = "gemini-3-flash-preview";
+  const prompt = sensorContext 
+    ? `CONTEXTE CAPTEURS ACTUELS:\n${sensorContext}\n\nQUESTION UTILISATEUR: ${message}`
+    : message;
+
+  try {
+    const response = await ai.models.generateContentStream({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.7,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      },
+    });
+
+    return response;
+  } catch (error: any) {
+    console.error("Gemini Stream Error:", error);
+    throw error;
+  }
+};
+
+export const speakText = async (text: string) => {
+  // Fallback function using browser's native SpeechSynthesis
+  const speakWithBrowser = (textToSpeak: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    speakWithBrowser(text);
+    return;
+  }
+
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
   try {
     const response = await ai.models.generateContent({
@@ -51,7 +94,7 @@ export const speakText = async (text: string) => {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: "Kore" }, // Voix professionnelle
+            prebuiltVoiceConfig: { voiceName: "Kore" },
           },
         },
       },
@@ -59,7 +102,6 @@ export const speakText = async (text: string) => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
-      // Convert base64 to ArrayBuffer
       const binaryString = window.atob(base64Audio);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -68,12 +110,10 @@ export const speakText = async (text: string) => {
       }
       const arrayBuffer = bytes.buffer;
 
-      // Gemini TTS returns 16-bit PCM at 24kHz
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const sampleRate = 24000;
       const numberOfChannels = 1;
       
-      // Convert 16-bit PCM to Float32
       const int16Data = new Int16Array(arrayBuffer);
       const float32Data = new Float32Array(int16Data.length);
       for (let i = 0; i < int16Data.length; i++) {
@@ -87,8 +127,12 @@ export const speakText = async (text: string) => {
       source.buffer = audioBuffer;
       source.connect(audioContext.destination);
       source.start();
+    } else {
+      // If no audio data, fallback to browser
+      speakWithBrowser(text);
     }
   } catch (error) {
-    console.error("TTS Error:", error);
+    console.error("TTS Error, falling back to browser speech:", error);
+    speakWithBrowser(text);
   }
 };

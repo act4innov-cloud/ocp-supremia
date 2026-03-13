@@ -39,6 +39,15 @@ service cloud.firestore {
     //   - pdfBase64: string
     //   - data: array
     //
+    // Collection: notifications
+    // Document ID: notificationId
+    // Fields:
+    //   - type: string
+    //   - message: string
+    //   - severity: string (['INFO', 'WARNING', 'DANGER', 'ERROR'])
+    //   - sensorId: string
+    //   - timestamp: timestamp
+    //
     // ===============================================================
 
     // ===============================================================
@@ -93,6 +102,15 @@ service cloud.firestore {
              (!('mqttConfig' in data) || data.mqttConfig is map);
     }
 
+    function isValidNotification(data) {
+      return hasOnlyAllowedFields(data, ['type', 'message', 'severity', 'sensorId', 'timestamp']) &&
+             data.type is string && data.type.size() > 0 && data.type.size() < 100 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.severity in ['INFO', 'WARNING', 'DANGER', 'ERROR'] &&
+             data.sensorId is string && data.sensorId.size() > 0 && data.sensorId.size() < 100 &&
+             data.timestamp is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -121,6 +139,12 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+      allow update, delete: if isAdmin();
     }
   }
 }

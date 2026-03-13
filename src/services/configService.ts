@@ -20,9 +20,9 @@ export interface AppConfig {
 
 const DEFAULT_CONFIG: AppConfig = {
   mqtt: {
-    broker: 'test.mosquitto.org',
-    port: 8081,
-    clientId: `supremia_client_${Math.random().toString(16).slice(2, 10)}`
+    broker: 'broker.emqx.io',
+    port: 8084,
+    clientId: `sup_${Math.random().toString(16).slice(2, 10)}`
   },
   notifications: {
     emailEnabled: false,

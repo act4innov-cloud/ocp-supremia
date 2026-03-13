@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, MicOff, Bot, User, X, Volume2, VolumeX } from 'lucide-react';
-import { chatWithGemini, speakText } from '../services/geminiService';
+import { chatWithGeminiStream, speakText } from '../services/geminiService';
+import { GenerateContentResponse } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -23,7 +24,107 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'fr-FR';
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+          // Auto-send if it's a voice command? Let's just set the input for now or auto-send.
+          // Auto-sending is better for "talk to bot" experience.
+          handleVoiceSend(transcript);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const handleVoiceSend = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+
+    setMessages(prev => [...prev, { role: 'user', text: text, timestamp: new Date() }]);
+    setIsLoading(true);
+
+    try {
+      const stream = await chatWithGeminiStream(text, sensorContext);
+      let fullResponse = "";
+      let firstSentenceSpoken = false;
+
+      setMessages(prev => [...prev, { role: 'bot', text: "", timestamp: new Date() }]);
+
+      for await (const chunk of stream) {
+        const c = chunk as GenerateContentResponse;
+        const chunkText = c.text || "";
+        fullResponse += chunkText;
+
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === 'bot') {
+            return [...prev.slice(0, -1), { ...last, text: fullResponse }];
+          }
+          return prev;
+        });
+
+        // Trigger TTS for the first chunk as soon as it's ready for faster perceived response
+        if (isVoiceEnabled && !firstSentenceSpoken && (fullResponse.includes('.') || fullResponse.includes('!') || fullResponse.includes('?') || fullResponse.split(' ').length > 3)) {
+          const sentences = fullResponse.split(/[.!?]/);
+          const firstPart = sentences[0] + (fullResponse.match(/[.!?]/)?.[0] || "");
+          if (firstPart.trim().length > 0) { 
+            speakText(firstPart);
+            firstSentenceSpoken = true;
+          }
+        }
+      }
+
+      // If the response was too short to trigger the first sentence logic, or if voice is enabled,
+      // we might want to speak the rest. But for simplicity and to avoid overlapping, 
+      // let's just speak the full response if it hasn't started yet.
+      if (isVoiceEnabled && !firstSentenceSpoken) {
+        await speakText(fullResponse);
+      } else if (isVoiceEnabled && firstSentenceSpoken) {
+        // Speak the rest of the response
+        const rest = fullResponse.substring(fullResponse.indexOf(fullResponse.split(/[.!?]/)[0]) + fullResponse.split(/[.!?]/)[0].length + 1);
+        if (rest.trim().length > 0) {
+          await speakText(rest);
+        }
+      }
+    } catch (error) {
+      console.error("Stream error:", error);
+      setMessages(prev => [...prev, { role: 'bot', text: "Désolé, une erreur est survenue.", timestamp: new Date() }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      setInput('');
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,13 +142,51 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
     setMessages(prev => [...prev, { role: 'user', text: userMsg, timestamp: new Date() }]);
     setIsLoading(true);
 
-    const botResponse = await chatWithGemini(userMsg, sensorContext);
-    
-    setMessages(prev => [...prev, { role: 'bot', text: botResponse, timestamp: new Date() }]);
-    setIsLoading(false);
+    try {
+      const stream = await chatWithGeminiStream(userMsg, sensorContext);
+      let fullResponse = "";
+      let firstSentenceSpoken = false;
 
-    if (isVoiceEnabled) {
-      await speakText(botResponse);
+      setMessages(prev => [...prev, { role: 'bot', text: "", timestamp: new Date() }]);
+
+      for await (const chunk of stream) {
+        const c = chunk as GenerateContentResponse;
+        const chunkText = c.text || "";
+        fullResponse += chunkText;
+
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === 'bot') {
+            return [...prev.slice(0, -1), { ...last, text: fullResponse }];
+          }
+          return prev;
+        });
+
+        // Trigger TTS for the first chunk as soon as it's ready
+        if (isVoiceEnabled && !firstSentenceSpoken && (fullResponse.includes('.') || fullResponse.includes('!') || fullResponse.includes('?') || fullResponse.split(' ').length > 3)) {
+          const sentences = fullResponse.split(/[.!?]/);
+          const firstPart = sentences[0] + (fullResponse.match(/[.!?]/)?.[0] || "");
+          if (firstPart.trim().length > 0) {
+            speakText(firstPart);
+            firstSentenceSpoken = true;
+          }
+        }
+      }
+
+      if (isVoiceEnabled && !firstSentenceSpoken) {
+        await speakText(fullResponse);
+      } else if (isVoiceEnabled && firstSentenceSpoken) {
+        const sentences = fullResponse.split(/[.!?]/);
+        const rest = sentences.slice(1).join(". ");
+        if (rest.trim().length > 0) {
+          await speakText(rest);
+        }
+      }
+    } catch (error) {
+      console.error("Stream error:", error);
+      setMessages(prev => [...prev, { role: 'bot', text: "Désolé, une erreur est survenue.", timestamp: new Date() }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,17 +257,27 @@ export default function Chatbot({ sensorContext }: { sensorContext: string }) {
 
             {/* Input */}
             <div className="p-4 bg-slate-800/50 border-t border-slate-700 flex gap-2">
+              <button 
+                onClick={toggleListening}
+                className={cn(
+                  "p-2 rounded-xl transition-all",
+                  isListening ? "bg-rose-500 text-white animate-pulse" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                )}
+                title="Parler au bot"
+              >
+                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Posez votre question sécurité..."
+                placeholder={isListening ? "Je vous écoute..." : "Posez votre question sécurité..."}
                 className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-ocp-green transition-colors"
               />
               <button 
                 onClick={handleSend}
-                disabled={isLoading}
+                disabled={isLoading || isListening}
                 className="bg-ocp-green hover:opacity-80 disabled:opacity-50 text-black p-2 rounded-xl transition-all"
               >
                 <Send size={18} />

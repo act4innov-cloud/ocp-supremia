@@ -19,13 +19,21 @@ interface ConfigPageProps {
   setNotifConfig: React.Dispatch<React.SetStateAction<NotificationConfig>>;
   mqttConfig: MQTTConfig;
   setMqttConfig: React.Dispatch<React.SetStateAction<MQTTConfig>>;
+  isMqttConnected: boolean;
+  mqttError: string | null;
+  onReconnect: () => void;
   onSave: (notif?: NotificationConfig, mqtt?: MQTTConfig) => void;
 }
 
-export default function ConfigPage({ isDarkMode, setIsDarkMode, notifConfig, setNotifConfig, mqttConfig, setMqttConfig, onSave }: ConfigPageProps) {
+export default function ConfigPage({ isDarkMode, setIsDarkMode, notifConfig, setNotifConfig, mqttConfig, setMqttConfig, isMqttConnected, mqttError, onReconnect, onSave }: ConfigPageProps) {
   const [showSaved, setShowSaved] = useState(false);
   const [localMqtt, setLocalMqtt] = useState<MQTTConfig>(mqttConfig);
   const [serviceStatus, setServiceStatus] = useState<{ email: boolean, twilio: boolean } | null>(null);
+
+  // Sync local state if prop changes from outside (e.g. Firestore sync)
+  useEffect(() => {
+    setLocalMqtt(mqttConfig);
+  }, [mqttConfig]);
 
   useEffect(() => {
     fetch('/api/health')
@@ -56,10 +64,28 @@ export default function ConfigPage({ isDarkMode, setIsDarkMode, notifConfig, set
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       {/* MQTT Config */}
       <div className="glass p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Database className="text-ocp-green" size={24} />
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Configuration MQTT</h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Database className="text-ocp-green" size={24} />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Configuration MQTT</h3>
+          </div>
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+            isMqttConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+          )}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", isMqttConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+            {isMqttConnected ? "Connecté" : "Déconnecté"}
+          </div>
         </div>
+        
+        {mqttError && !isMqttConnected && (
+          <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3">
+            <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+            <p className="text-xs text-rose-500 font-medium">
+              Erreur : {mqttError}
+            </p>
+          </div>
+        )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase">Serveur MQTT (Broker)</label>
@@ -79,6 +105,35 @@ export default function ConfigPage({ isDarkMode, setIsDarkMode, notifConfig, set
               onChange={(e) => handleMQTTChange('port', parseInt(e.target.value) || 0)}
               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-ocp-green outline-none transition-all text-slate-900 dark:text-white placeholder:text-slate-400" 
             />
+          </div>
+          <div className="col-span-full p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+            <p className="text-xs text-blue-500 leading-relaxed">
+              <strong>Note sur le protocole :</strong> Ce dashboard étant servi via HTTPS, il utilise automatiquement <strong>WSS</strong> (WebSocket Secure). 
+              Nous recommandons <code>broker.emqx.io</code> sur le port <strong>8084</strong> pour une stabilité optimale. 
+              Même si vos capteurs Arduino utilisent <code>ws://</code> sur ce port, le navigateur requiert <code>wss://</code> pour des raisons de sécurité.
+            </p>
+          </div>
+          <div className="flex justify-end gap-4 mt-4">
+            <button 
+              onClick={onReconnect}
+              className="text-xs text-blue-500 hover:text-blue-600 transition-colors font-bold uppercase"
+            >
+              Forcer la reconnexion
+            </button>
+            <button 
+              onClick={() => {
+                const defaultConfig = {
+                  broker: 'broker.emqx.io',
+                  port: 8084,
+                  clientId: `sup_${Math.random().toString(16).slice(2, 10)}`
+                };
+                setLocalMqtt(defaultConfig);
+                onSave(undefined, defaultConfig);
+              }}
+              className="text-xs text-slate-500 hover:text-ocp-green transition-colors font-bold uppercase"
+            >
+              Réinitialiser aux paramètres recommandés
+            </button>
           </div>
           <button 
             onClick={handleSave}

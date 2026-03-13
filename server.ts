@@ -7,7 +7,7 @@ import twilio from "twilio";
 import cron from "node-cron";
 import mqtt from "mqtt";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import admin from "firebase-admin";
 
 dotenv.config();
@@ -171,7 +171,7 @@ const generateAndStoreReport = async (type: "DAILY" | "WEEKLY" | "MONTHLY") => {
     s.status
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: 40,
     head: [['ID', 'TYPE', 'VAL Min', 'VAL Max', 'ALERTE', 'STATUT']],
     body: tableData,

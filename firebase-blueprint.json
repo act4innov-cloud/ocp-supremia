@@ -77,6 +77,19 @@
         "pdfBase64": { "type": "string" }
       },
       "required": ["id", "type", "timestamp", "data"]
+    },
+    "NotificationEvent": {
+      "title": "NotificationEvent",
+      "description": "A system or sensor notification",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": "string" },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "DANGER", "ERROR"] },
+        "sensorId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "message", "severity", "sensorId", "timestamp"]
     }
   },
   "firestore": {
@@ -95,6 +108,10 @@
     "/reports/{reportId}": {
       "schema": "Report",
       "description": "Generated reports"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "NotificationEvent",
+      "description": "System notifications history"
     }
   }
 }

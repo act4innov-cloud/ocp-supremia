@@ -1,4 +1,8 @@
 
+import { speakText } from './geminiService';
+import { db } from '../firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
 export interface NotificationConfig {
   emailEnabled: boolean;
   whatsappEnabled: boolean;
@@ -19,10 +23,26 @@ class NotificationService {
   private lastAlerts: Record<string, number> = {};
   private ALERT_COOLDOWN = 300000; // 5 minutes cooldown per sensor
   private simulateMode: boolean = false;
+  private speechQueue: string[] = [];
+  private isSpeaking: boolean = false;
+  private ttsEnabled: boolean = false;
+  private lastMqttStatusTime: number = 0;
+  private MQTT_STATUS_COOLDOWN = 60000; // 1 minute cooldown for MQTT status
 
   setSimulateMode(enabled: boolean) {
     this.simulateMode = enabled;
     console.log(`🛠 Mode Simulation ${enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
+  }
+
+  enableTTS() {
+    this.ttsEnabled = true;
+    console.log('🔊 Synthèse vocale ACTIVÉE');
+  }
+
+  disableTTS() {
+    this.ttsEnabled = false;
+    this.speechQueue = []; // Clear queue on logout
+    console.log('🔇 Synthèse vocale DÉSACTIVÉE');
   }
 
   updateConfig(newConfig: NotificationConfig) {
@@ -48,6 +68,13 @@ class NotificationService {
 
     const message = `${emoji} ${severity} SUPREMIA ${emoji}\nCapteur: ${sensorName}\nType: ${type}\nValeur: ${value}${unit}\nLocalisation: ${location}\nAction: ${action}`;
 
+    // Log to Firestore
+    this.logEvent('ALERT', message, status, sensorName);
+
+    // TTS Message
+    const ttsMessage = `Alerte ${severity}. Capteur ${sensorName}. ${type} à ${value} ${unit}. Localisation ${location}. ${action}`;
+    this.queueSpeech(ttsMessage);
+
     this.broadcast(message, `${severity}: ${sensorName}`);
   }
 
@@ -56,6 +83,13 @@ class NotificationService {
     const emoji = newStatus === 'SAFE' ? '✅' : (newStatus === 'WARNING' ? '⚠️' : '🚨');
     const message = `${emoji} CHANGEMENT DE STATUT SUPREMIA ${emoji}\nCapteur: ${sensorName}\nType: ${type}\nTransition: ${displayStatus(oldStatus)} ➔ ${displayStatus(newStatus)}\nValeur actuelle: ${value}${unit}`;
     
+    // Log to Firestore
+    this.logEvent('STATUS_CHANGE', message, newStatus === 'SAFE' ? 'INFO' : (newStatus as any), sensorName);
+
+    // TTS Message
+    const ttsMessage = `Changement de statut pour ${sensorName}. Le capteur est maintenant ${newStatus === 'SAFE' ? 'en sécurité' : displayStatus(newStatus)}. Valeur actuelle ${value} ${unit}.`;
+    this.queueSpeech(ttsMessage);
+
     this.broadcast(message, `Statut: ${sensorName} (${displayStatus(newStatus)})`);
   }
 
@@ -64,6 +98,13 @@ class NotificationService {
     const status = isOnline ? 'EN LIGNE' : 'HORS LIGNE';
     const message = `${emoji} CONNECTIVITÉ SUPREMIA ${emoji}\nCapteur: ${sensorName}\nÉtat: ${status}`;
     
+    // Log to Firestore
+    this.logEvent('CONNECTIVITY', message, isOnline ? 'INFO' : 'WARNING', sensorName);
+
+    // TTS Message
+    const ttsMessage = `Le capteur ${sensorName} est désormais ${status.toLowerCase()}.`;
+    this.queueSpeech(ttsMessage);
+
     const subject = `Connectivité: ${sensorName} (${status})`;
     console.log(`🔔 Notification: ${subject}\n${message}`);
 
@@ -78,6 +119,76 @@ class NotificationService {
     if (this.config.smsEnabled && this.config.phoneRecipient) {
       this.sendSMS(this.config.phoneRecipient, message);
     }
+  }
+
+  async sendMqttStatusChange(isConnected: boolean) {
+    const now = Date.now();
+    if (!isConnected && now - this.lastMqttStatusTime < this.MQTT_STATUS_COOLDOWN) {
+      return; // Throttle disconnected messages to 1 per minute
+    }
+
+    if (!isConnected) {
+      this.lastMqttStatusTime = now;
+    }
+
+    const status = isConnected ? 'Connecté' : 'Déconnecté';
+    const message = `Passerelle MQTT ${status}.`;
+    
+    // Log to Firestore
+    this.logEvent('GATEWAY', message, isConnected ? 'INFO' : 'ERROR', 'GATEWAY');
+
+    this.queueSpeech(message);
+    console.log(`🔔 Notification Gateway: ${message}`);
+  }
+
+  async sendSensorError(sensorName: string, error: string) {
+    const message = `Erreur sur le capteur ${sensorName}: ${error}.`;
+    
+    // Log to Firestore
+    this.logEvent('ERROR', message, 'ERROR', sensorName);
+
+    this.queueSpeech(message);
+    console.log(`🔔 Notification Erreur: ${message}`);
+  }
+
+  private async logEvent(type: string, message: string, severity: 'INFO' | 'WARNING' | 'DANGER' | 'ERROR', sensorId: string) {
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        type,
+        message,
+        severity,
+        sensorId,
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error logging notification to Firestore:', error);
+    }
+  }
+
+  private queueSpeech(text: string) {
+    if (!this.ttsEnabled) return;
+    this.speechQueue.push(text);
+    this.processSpeechQueue();
+  }
+
+  private async processSpeechQueue() {
+    if (this.isSpeaking || this.speechQueue.length === 0) return;
+
+    this.isSpeaking = true;
+    const text = this.speechQueue.shift();
+    
+    if (text) {
+      try {
+        await speakText(text);
+        // Wait a bit between messages
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('TTS Error:', error);
+      }
+    }
+
+    this.isSpeaking = false;
+    this.processSpeechQueue();
   }
 
   private broadcast(message: string, subject: string) {
